@@ -1,0 +1,70 @@
+const LINKS = {
+  post1: {
+    title: "Discover Something Amazing Today",
+    description: "Explore something new and discover more.",
+    image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi3A75uRWXCdIFQSREtar08vpTvpYQI6rQwtigZTetAapBxPAcLFnjEKO3LG8Boqcfdb1UZ9rh88SkDyhTcD44gMkrRyMzoCC0gPjLtelnNLBlV3TRDqZWop-ZtTsJ61lOMvZslqwLfZbwf7Fh8NWCTMQPqDSTfp0AmRarnLuEps-erIdudWuCbvs_puUna/s1600/7.jpeg",
+    destination: "https://zz.dennys-menus.com/top-10-most-expensive-hospitals-in-canada-premium-healthcare-and-specialist-treatment-costs/"
+  }
+};
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const id = url.pathname.replace(/^\/+|\/+$/g, "");
+    const item = LINKS[id];
+
+    if (!item) {
+      return new Response("Link not found", { status: 404 });
+    }
+
+    const ua = request.headers.get("user-agent") || "";
+    const isFacebookCrawler =
+      /facebookexternalhit|Facebot|meta-externalagent/i.test(ua);
+
+    // Facebook crawler receives the OG preview metadata.
+    if (isFacebookCrawler) {
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHTML(item.title)}</title>
+<meta name="description" content="${escapeHTML(item.description)}">
+<meta property="og:title" content="${escapeHTML(item.title)}">
+<meta property="og:description" content="${escapeHTML(item.description)}">
+<meta property="og:image" content="${escapeHTML(item.image)}">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:url" content="${escapeHTML(url.href)}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<h1>${escapeHTML(item.title)}</h1>
+<p>${escapeHTML(item.description)}</p>
+<a href="${escapeHTML(item.destination)}">Continue</a>
+</body>
+</html>`;
+
+      return new Response(html, {
+        headers: {
+          "content-type": "text/html; charset=UTF-8",
+          "cache-control": "no-cache"
+        }
+      });
+    }
+
+    // Normal visitors go directly to the destination.
+    return Response.redirect(item.destination, 302);
+  }
+};
